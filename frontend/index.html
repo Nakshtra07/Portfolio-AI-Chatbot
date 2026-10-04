@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nakshatra — Candidate AI</title>
+  <meta name="description" content="AI-powered recruiter interface. Ask anything about this candidate or paste a job description to check fit." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ════════════════════════════════════════════════════════════
+       DESIGN TOKENS — Editorial Brutalism
+       Canvas: #EBEBEB  Ink: #111111  Accent: #FF3C00
+       Chat dark bg: #0D0D0D  Mono labels: Space Mono 700
+    ════════════════════════════════════════════════════════════ */
+    :root {
+      /* Palette */
+      --canvas:       #EBEBEB;
+      --ink:          #111111;
+      --ink-muted:    #555555;
+      --ink-subtle:   #999999;
+      --border:       #CCCCCC;
+      --accent:       #FF3C00;
+      --accent-hover: #CC3000;
+      --white:        #FFFFFF;
+
+      /* Chat surfaces */
+      --chat-bg:       #0D0D0D;
+      --chat-surface:  #111111;
+      --chat-border:   #222222;
+      --chat-border-s: #333333;
+      --chat-user-bg:  #1E1E1E;
+      --chat-ai-bg:    #181818;
+      --chat-input-bg: #141414;
+      --chat-text:     #FFFFFF;
+      --chat-muted:    #555555;
+
+      /* Typography */
+      --font-d: 'Inter', system-ui, sans-serif;
+      --font-m: 'Space Mono', 'Courier New', monospace;
+
+      /* Spacing */
+      --pad: clamp(1.25rem, 5vw, 2.5rem);
+      --max-w: 1280px;
+      --chat-max-w: 860px;
+    }
+
+    /* Dark mode — hero goes dark */
+    [data-theme="dark"] .nav          { background: #080808; border-color: #222; }
+    [data-theme="dark"] .nav-brand,
+    [data-theme="dark"] .theme-lbl   { color: #EEE; }
+    [data-theme="dark"] .theme-btn   { border-color: #333; color: #666; }
+    [data-theme="dark"] .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+    [data-theme="dark"] .hero        { background: #0A0A0A; border-color: #222; }
+    [data-theme="dark"] .hero-label  { color: #444; }
+    [data-theme="dark"] .hero-name   { color: #FFFFFF; }
+    [data-theme="dark"] .hero-title  { color: #888; }
+    [data-theme="dark"] .hero-radar circle,
+    [data-theme="dark"] .hero-radar line { stroke: #2A2A2A; }
+    [data-theme="dark"] .email-btn   { background: var(--white); color: var(--ink); }
+    [data-theme="dark"] .email-btn:hover { background: var(--accent); color: var(--white); }
+    [data-theme="dark"] .resume-btn  { border-color: #444; color: #DDD; }
+    [data-theme="dark"] .resume-btn:hover { border-color: var(--accent); color: var(--accent); }
+    [data-theme="dark"] .nav-resume-link { border-color: #333; color: #888; }
+    [data-theme="dark"] .nav-resume-link:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── RESET ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html   { scroll-behavior: smooth; }
+    body   {
+      font-family: var(--font-d);
+      background: var(--canvas);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    button { font-family: inherit; }
+    textarea, input { font-family: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ── NAV ────────────────────────────────────────────────── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--canvas);
+      border-bottom: 1px solid var(--border);
+      transition: background .2s, border-color .2s;
+    }
+    .nav-inner {
+      max-width: var(--max-w); margin: 0 auto;
+      padding: .9rem var(--pad);
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    .nav-brand {
+      font-family: var(--font-m);
+      font-size: .7rem; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--ink); text-decoration: none;
+    }
+    .nav-right { display: flex; align-items: center; gap: .75rem; }
+    .theme-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--ink-subtle); cursor: pointer;
+      font-family: var(--font-m); font-size: .6rem; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      padding: .4rem .8rem;
+      transition: border-color .1s, color .1s;
+    }
+    .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .theme-lbl { font-family: var(--font-m); font-size: .65rem; color: var(--ink-subtle); }
+
+    /* ── HERO ───────────────────────────────────────────────── */
+    .hero {
+      background: var(--canvas);
+      border-bottom: 1px solid var(--border);
+      padding: clamp(4rem, 10vw, 7rem) var(--pad) clamp(3rem, 8vw, 5rem);
+      transition: background .2s, border-color .2s;
+    }
+    .hero-inner {
+      max-width: var(--max-w); margin: 0 auto;
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 2rem; align-items: center;
+    }
+    .hero-left { min-width: 0; }
+
+    .hero-label {
+      font-family: var(--font-m);
+      font-size: .68rem; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--ink-subtle);
+      margin-bottom: 1.5rem;
+      opacity: 0; transform: translateY(10px);
+      animation: fadeUp .5s ease forwards .1s;
+    }
+    .hero-name {
+      font-family: var(--font-d);
+      font-size: clamp(3.5rem, 12vw, 7.5rem);
+      font-weight: 900; line-height: .95;
+      letter-spacing: -.04em; text-transform: uppercase;
+      color: var(--ink);
+      margin-bottom: 1.5rem;
+      opacity: 0; transform: translateY(24px);
+      animation: fadeUp .65s ease forwards .2s;
+    }
+    .hero-name .dot { color: var(--accent); }
+
+    .hero-title {
+      font-size: clamp(.9rem, 2vw, 1.05rem);
+      font-weight: 400; line-height: 1.7;
+      color: var(--ink-muted); max-width: 500px;
+      margin-bottom: 2rem;
+      opacity: 0; transform: translateY(10px);
+      animation: fadeUp .5s ease forwards .38s;
+    }
+
+    .hero-actions {
+      display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+      opacity: 0; transform: translateY(10px);
+      animation: fadeUp .5s ease forwards .52s;
+    }
+
+    .email-btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .85rem 1.4rem;
+      background: var(--ink); color: var(--white);
+      text-decoration: none;
+      font-family: var(--font-m); font-size: .68rem; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+      border: none; cursor: pointer;
+      transition: background .1s, color .1s;
+    }
+    .email-btn:hover { background: var(--accent); color: var(--white); }
+
+    .resume-btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .85rem 1.4rem;
+      background: transparent; color: var(--ink);
+      text-decoration: none;
+      font-family: var(--font-m); font-size: .68rem; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+      border: 1px solid var(--ink); cursor: pointer;
+      transition: border-color .1s, color .1s, background .1s;
+    }
+    .resume-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .nav-resume-link {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .4rem .75rem;
+      background: transparent; color: var(--ink-muted);
+      text-decoration: none;
+      font-family: var(--font-m); font-size: .6rem; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      border: 1px solid var(--border);
+      transition: border-color .1s, color .1s;
+    }
+    .nav-resume-link:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Radar SVG */
+    .hero-right {
+      flex-shrink: 0;
+      width: clamp(180px, 24vw, 310px);
+      height: clamp(180px, 24vw, 310px);
+      opacity: 0; animation: fadeIn 1.2s ease forwards .4s;
+    }
+    .radar-ring { stroke-dasharray: 1000; stroke-dashoffset: 1000; }
+    .radar-ring-1 { animation: drawRing 2s ease forwards .5s; }
+    .radar-ring-2 { animation: drawRing 1.8s ease forwards .65s; }
+    .radar-ring-3 { animation: drawRing 1.6s ease forwards .8s; }
+    .radar-ring-4 { animation: drawRing 1.4s ease forwards .95s; }
+    .radar-sweep  {
+      transform-origin: 140px 140px;
+      animation: sweep 5s linear infinite;
+    }
+
+    @media (max-width: 600px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .hero-right { display: none; }
+    }
+
+    /* ── CHAT SECTION ───────────────────────────────────────── */
+    .chat-section {
+      background: var(--chat-bg);
+      min-height: 100vh;
+      padding: clamp(3rem, 8vw, 5rem) var(--pad) 4rem;
+    }
+    .chat-inner {
+      max-width: var(--chat-max-w); margin: 0 auto;
+    }
+
+    /* heading */
+    .chat-heading {
+      font-family: var(--font-d);
+      font-size: clamp(1.9rem, 5vw, 3.2rem);
+      font-weight: 900; line-height: 1.05;
+      letter-spacing: -.03em; text-transform: uppercase;
+      color: var(--chat-text);
+      margin-bottom: .8rem;
+      opacity: 0; transform: translateY(20px);
+    }
+    .chat-heading.in { animation: fadeUp .6s ease forwards; }
+    .chat-heading .dot { color: var(--accent); }
+
+    .chat-subtitle {
+      font-family: var(--font-m); font-size: .68rem; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: .75rem;
+    }
+    .chat-status {
+      display: flex; align-items: center; gap: .5rem;
+      margin-bottom: 2.25rem;
+    }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .status-txt {
+      font-family: var(--font-m); font-size: .62rem;
+      color: var(--chat-muted); letter-spacing: .08em; text-transform: uppercase;
+    }
+
+    /* chips */
+    .chips {
+      display: flex; flex-wrap: wrap; gap: .5rem;
+      margin-bottom: 2.25rem;
+    }
+    .chip {
+      background: transparent; border: 1px solid var(--chat-border-s);
+      color: var(--chat-muted); cursor: pointer;
+      font-family: var(--font-m); font-size: .62rem; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+      padding: .55rem 1rem;
+      transition: border-color .1s, color .1s;
+      text-align: left;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--chat-text); }
+
+    /* thread header */
+    .thread-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .55rem 0;
+      border-top: 1px solid var(--chat-border);
+      border-bottom: 1px solid var(--chat-border);
+      margin-bottom: 1px;
+    }
+    .thread-lbl {
+      font-family: var(--font-m); font-size: .6rem; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--chat-muted);
+    }
+    .clear-btn {
+      background: transparent; border: none;
+      color: var(--chat-muted); cursor: pointer;
+      font-family: var(--font-m); font-size: .6rem; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      display: flex; align-items: center; gap: .4rem;
+      padding: .2rem 0;
+      transition: color .1s;
+    }
+    .clear-btn:hover { color: var(--accent); }
+
+    /* message thread */
+    .thread {
+      display: flex; flex-direction: column; gap: 1px;
+      min-height: 200px; margin-bottom: 1px;
+    }
+    .empty-state {
+      display: flex; align-items: center; justify-content: center;
+      padding: 3rem 1rem; color: var(--chat-muted);
+      font-family: var(--font-m); font-size: .68rem;
+      letter-spacing: .1em; text-transform: uppercase;
+      border: 1px dashed var(--chat-border);
+      margin-top: 1px;
+    }
+
+    /* messages */
+    .msg {
+      padding: 1.1rem 1.25rem .9rem;
+      opacity: 0; transform: translateY(8px);
+      animation: fadeUp .28s ease forwards;
+    }
+    .msg--user  { background: var(--chat-user-bg); border-left: 3px solid var(--accent); }
+    .msg--ai    { background: var(--chat-ai-bg);   border-left: 3px solid var(--chat-border-s); }
+    .msg--error { background: #160000;             border-left: 3px solid #550000; }
+
+    .msg-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: .55rem;
+    }
+    .msg-meta { display: flex; align-items: center; gap: .65rem; }
+    .msg-role {
+      font-family: var(--font-m); font-size: .58rem; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase;
+    }
+    .msg--user  .msg-role { color: var(--accent); }
+    .msg--ai    .msg-role { color: var(--chat-muted); }
+    .msg--error .msg-role { color: #ff5555; }
+    .msg-time {
+      font-family: var(--font-m); font-size: .56rem; color: var(--chat-muted);
+    }
+    .copy-btn {
+      background: transparent; border: none; cursor: pointer; padding: .15rem;
+      color: var(--chat-muted); display: flex; align-items: center;
+      transition: color .1s;
+    }
+    .copy-btn:hover { color: var(--chat-text); }
+    .copy-btn.ok  { color: var(--accent); }
+    .msg-body {
+      font-size: .9rem; font-weight: 400; line-height: 1.75;
+      color: var(--chat-text); white-space: pre-wrap; word-break: break-word;
+    }
+    .msg--error .msg-body { color: #ff7777; }
+
+    /* typing indicator */
+    .typing {
+      background: var(--chat-ai-bg); border-left: 3px solid var(--chat-border-s);
+      padding: 1rem 1.25rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .typing-lbl {
+      font-family: var(--font-m); font-size: .58rem; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--chat-muted);
+    }
+    .dots { display: flex; gap: 4px; }
+    .dot-el {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--accent);
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .dot-el:nth-child(2) { animation-delay: .18s; }
+    .dot-el:nth-child(3) { animation-delay: .36s; }
+
+    /* input */
+    .input-wrap {
+      border: 1px solid var(--chat-border-s);
+      background: var(--chat-input-bg);
+      margin-top: 1px;
+    }
+    .input-row { display: flex; align-items: stretch; }
+    .chat-input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--chat-text); font-size: .9rem; line-height: 1.55;
+      padding: 1rem 1.25rem; resize: none;
+      min-height: 54px; max-height: 160px;
+    }
+    .chat-input::placeholder { color: var(--chat-muted); }
+    .send-btn {
+      background: var(--accent); border: none; color: #000;
+      font-family: var(--font-m); font-size: .7rem; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      padding: 0 1.4rem; cursor: pointer; flex-shrink: 0; min-width: 88px;
+      transition: background .1s;
+    }
+    .send-btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .send-btn:disabled {
+      background: var(--chat-border-s); color: var(--chat-muted); cursor: not-allowed;
+    }
+    .input-foot {
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem;
+      padding: .4rem 1.25rem .55rem;
+      border-top: 1px solid var(--chat-border);
+    }
+    .hint {
+      font-family: var(--font-m); font-size: .56rem;
+      color: var(--chat-muted); letter-spacing: .06em; text-transform: uppercase;
+    }
+    @media (max-width: 560px) { .hint-privacy { display: none; } }
+
+    /* ── FOOTER ─────────────────────────────────────────────── */
+    .footer { background: var(--chat-bg); border-top: 1px solid var(--chat-border); }
+    .footer-inner {
+      max-width: var(--max-w); margin: 0 auto;
+      padding: 1.1rem var(--pad);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+    }
+    .footer-txt {
+      font-family: var(--font-m); font-size: .58rem;
+      color: var(--chat-muted); letter-spacing: .08em; text-transform: uppercase;
+    }
+
+    /* ── KEYFRAMES ──────────────────────────────────────────── */
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .3; }
+    }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30%            { transform: translateY(-5px); }
+    }
+    @keyframes sweep {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    @keyframes drawRing {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* Respect reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-delay:    .01ms !important;
+        transition-duration:.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ NAV ══════════════════════════════════════════════════ -->
+  <nav class="nav" role="navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">NAKSHATRA // INTEL_PORTFOLIO</a>
+      <div class="nav-right">
+        <a href="/resume.pdf" class="nav-resume-link" id="navResumeLink" target="_blank" rel="noopener">
+          RESUME.PDF ↗
+        </a>
+        <span class="theme-lbl" id="themeLabel" aria-hidden="true">◑ LIGHT MODE</span>
+        <button class="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">
+          TOGGLE
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══ HERO ══════════════════════════════════════════════════ -->
+  <section class="hero">
+    <div class="hero-inner">
+
+      <!-- Left col -->
+      <div class="hero-left">
+        <p class="hero-label">CANDIDATE PROFILE // VERIFIED DOSSIER</p>
+
+        <h1 class="hero-name">NAKSHATRA<span class="dot">.</span></h1>
+
+        <p class="hero-title" id="heroTitle">AI Full-Stack Engineer</p>
+
+        <div class="hero-actions">
+          <a href="#" class="email-btn" id="emailBtn" target="_blank" rel="noopener">
+            <!-- Envelope icon -->
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16"/>
+              <polyline points="2,4 12,13 22,4"/>
+            </svg>
+            CONNECT VIA EMAIL
+          </a>
+
+          <a href="/resume.pdf" class="resume-btn" id="resumeBtn" target="_blank" rel="noopener">
+            <!-- Document icon -->
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            VIEW RESUME ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Right col — radar SVG -->
+      <div class="hero-right" aria-hidden="true">
+        <svg viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg" class="hero-radar">
+          <!-- Concentric rings -->
+          <circle class="radar-ring radar-ring-1" cx="140" cy="140" r="128"
+                  stroke="#BBBBBB" stroke-width=".6" fill="none"/>
+          <circle class="radar-ring radar-ring-2" cx="140" cy="140" r="96"
+                  stroke="#BBBBBB" stroke-width=".6" fill="none"/>
+          <circle class="radar-ring radar-ring-3" cx="140" cy="140" r="64"
+                  stroke="#BBBBBB" stroke-width=".6" fill="none"/>
+          <circle class="radar-ring radar-ring-4" cx="140" cy="140" r="32"
+                  stroke="#BBBBBB" stroke-width=".6" fill="none"/>
+          <!-- Crosshairs -->
+          <line x1="140" y1="8"   x2="140" y2="272" stroke="#BBBBBB" stroke-width=".5" opacity=".5"/>
+          <line x1="8"   y1="140" x2="272" y2="140" stroke="#BBBBBB" stroke-width=".5" opacity=".5"/>
+          <!-- Diagonals -->
+          <line x1="50"  y1="50"  x2="230" y2="230" stroke="#BBBBBB" stroke-width=".4" opacity=".25"/>
+          <line x1="230" y1="50"  x2="50"  y2="230" stroke="#BBBBBB" stroke-width=".4" opacity=".25"/>
+          <!-- Animated sweep -->
+          <g class="radar-sweep">
+            <line x1="140" y1="140" x2="140" y2="14"
+                  stroke="#FF3C00" stroke-width="1.2" opacity=".75"/>
+          </g>
+          <!-- Corner ticks -->
+          <polyline points="8,24 8,8 24,8"    stroke="#888" stroke-width=".6" fill="none"/>
+          <polyline points="256,8 272,8 272,24" stroke="#888" stroke-width=".6" fill="none"/>
+          <polyline points="8,256 8,272 24,272" stroke="#888" stroke-width=".6" fill="none"/>
+          <polyline points="272,256 272,272 256,272" stroke="#888" stroke-width=".6" fill="none"/>
+          <!-- Target -->
+          <circle cx="178" cy="100" r="5"  fill="#FF3C00" opacity=".9"/>
+          <circle cx="178" cy="100" r="10" stroke="#FF3C00" stroke-width=".6" fill="none" opacity=".4"/>
+          <!-- Centre -->
+          <circle cx="140" cy="140" r="2.5" fill="#999"/>
+        </svg>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ CHAT SECTION ══════════════════════════════════════════ -->
+  <section class="chat-section" id="chatSection">
+    <div class="chat-inner">
+
+      <!-- Header -->
+      <h2 class="chat-heading" id="chatHeading">
+        ASK ANYTHING ABOUT THIS CANDIDATE<span class="dot">.</span>
+      </h2>
+      <p class="chat-subtitle">// PASTE A JOB DESCRIPTION TO CHECK CANDIDATE FIT</p>
+      <div class="chat-status">
+        <div class="status-dot"></div>
+        <span class="status-txt">SYS.ONLINE // CANDIDATE_LLM_V2.5</span>
+      </div>
+
+      <!-- Quick prompt chips -->
+      <div class="chips" role="list">
+        <button class="chip" role="listitem"
+          onclick="chipSend('What are the candidate\'s strongest technical skills and areas of expertise?')">
+          &gt;&nbsp;WHAT ARE THE CANDIDATE'S STRONGEST SKILLS?
+        </button>
+        <button class="chip" role="listitem" onclick="chipJD()">
+          &gt;&nbsp;PASTE A JOB DESCRIPTION TO CHECK FIT
+        </button>
+        <button class="chip" role="listitem"
+          onclick="chipSend('Summarize this candidate\'s work experience, background, and career journey.')">
+          &gt;&nbsp;SUMMARIZE THIS CANDIDATE'S EXPERIENCE
+        </button>
+      </div>
+
+      <!-- Thread header -->
+      <div class="thread-bar">
+        <span class="thread-lbl">DIALOGUE STREAM // CONTEXT: NAKSHATRA_DOSSIER</span>
+        <button class="clear-btn" onclick="clearChat()" aria-label="Clear conversation">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          CLEAR CHAT [ESC]
+        </button>
+      </div>
+
+      <!-- Message thread -->
+      <div class="thread" id="thread" role="log" aria-live="polite" aria-label="Conversation">
+        <div class="empty-state" id="emptyState">
+          ↑ CLICK A PROMPT ABOVE OR TYPE BELOW TO BEGIN
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="input-wrap">
+        <div class="input-row">
+          <textarea
+            id="chatInput"
+            class="chat-input"
+            placeholder="Ask about the candidate or paste a job description…"
+            rows="1"
+            aria-label="Your message"
+          ></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Send message">
+            SEND →
+          </button>
+        </div>
+        <div class="input-foot">
+          <span class="hint">PRESS [ENTER] TO SEND &nbsp;·&nbsp; SHIFT+ENTER FOR NEW LINE &nbsp;·&nbsp; ESC TO CLEAR</span>
+          <span class="hint hint-privacy">STRICT PRIVACY: NO PROMPTS STORED EXTERNALLY</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ═════════════════════════════════════════════════ -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="footer-txt">© 2025 NAKSHATRA — CANDIDATE AI SYSTEM</span>
+      <span class="footer-txt">POWERED BY GROQ + FASTAPI</span>
+    </div>
+  </footer>
+
+
+  <script>
+    /* ── CONFIG ──────────────────────────────────────────────── */
+    const API = '';   // same origin; change to 'http://localhost:8000' if needed
+
+    /* ── DARK MODE ───────────────────────────────────────────── */
+    function toggleTheme() {
+      const html = document.documentElement;
+      const dark = html.dataset.theme === 'dark';
+      html.dataset.theme = dark ? 'light' : 'dark';
+      document.getElementById('themeLabel').textContent = dark ? '◑ LIGHT MODE' : '◐ DARK MODE';
+    }
+
+    /* ── LOAD RESUME INFO ────────────────────────────────────── */
+    async function loadResumeInfo() {
+      try {
+        const res  = await fetch(`${API}/resume-info`);
+        const data = await res.json();
+
+        const titleEl = document.getElementById('heroTitle');
+        titleEl.textContent = data.title || 'AI Full-Stack Engineer';
+
+        if (data.email) {
+          const btn = document.getElementById('emailBtn');
+          /* Opens Gmail compose with To pre-filled */
+          btn.href  = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(data.email)}`;
+          btn.title = `Email ${data.email}`;
+        }
+
+        if (data.resume_url) {
+          const rBtn = document.getElementById('resumeBtn');
+          if (rBtn) rBtn.href = data.resume_url;
+          const nBtn = document.getElementById('navResumeLink');
+          if (nBtn) nBtn.href = data.resume_url;
+        }
+      } catch {
+        document.getElementById('heroTitle').textContent = 'AI Full-Stack Engineer';
+      }
+    }
+    loadResumeInfo();
+
+    /* ── SCROLL REVEAL — chat heading ────────────────────────── */
+    const revealObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          revealObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.25 });
+    revealObs.observe(document.getElementById('chatHeading'));
+
+    /* ── AUTO-GROW TEXTAREA ──────────────────────────────────── */
+    const inputEl = document.getElementById('chatInput');
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+    });
+
+    /* ── KEYBOARD SHORTCUTS ──────────────────────────────────── */
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+      if (e.key === 'Escape') clearChat();
+    });
+
+    /* ── UTILS ───────────────────────────────────────────────── */
+    const thread    = document.getElementById('thread');
+    const sendBtn   = document.getElementById('sendBtn');
+    const emptyState = document.getElementById('emptyState');
+
+    function timestamp() {
+      return new Date().toLocaleTimeString('en-GB', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }) + ' UTC';
+    }
+
+    function removeEmpty() {
+      emptyState?.remove();
+    }
+
+    /* ── APPEND MESSAGE ──────────────────────────────────────── */
+    function appendMsg(role, text) {
+      removeEmpty();
+      const wrap = document.createElement('div');
+      const id   = `m-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+      const label = role === 'user' ? 'YOU' : role === 'error' ? 'ERR' : 'AI';
+
+      wrap.className = `msg msg--${role}`;
+      wrap.innerHTML = `
+        <div class="msg-head">
+          <div class="msg-meta">
+            <span class="msg-role">${label}</span>
+            <span class="msg-time">[${timestamp()}]</span>
+          </div>
+          ${role !== 'error' ? `
+          <button class="copy-btn" onclick="copyMsg(this,'${id}')" aria-label="Copy message">
+            ${iconCopy()}
+          </button>` : ''}
+        </div>
+        <div class="msg-body" id="${id}">${role === 'user' ? escHtml(text) : ''}</div>
+      `;
+
+      thread.appendChild(wrap);
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return document.getElementById(id);
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    /* ── COPY ────────────────────────────────────────────────── */
+    function iconCopy() {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+        <rect x="9" y="9" width="13" height="13"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>`;
+    }
+    function iconCheck() {
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>`;
+    }
+    function copyMsg(btn, id) {
+      const text = document.getElementById(id)?.textContent || '';
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('ok');
+        btn.innerHTML = iconCheck();
+        setTimeout(() => { btn.classList.remove('ok'); btn.innerHTML = iconCopy(); }, 2000);
+      });
+    }
+
+    /* ── TYPING INDICATOR ────────────────────────────────────── */
+    function showTyping() {
+      removeEmpty();
+      const el = document.createElement('div');
+      el.className = 'typing'; el.id = 'typing';
+      el.innerHTML = `
+        <span class="typing-lbl">AI AGENT EVALUATING DOSSIER…</span>
+        <div class="dots">
+          <div class="dot-el"></div>
+          <div class="dot-el"></div>
+          <div class="dot-el"></div>
+        </div>`;
+      thread.appendChild(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function hideTyping() { document.getElementById('typing')?.remove(); }
+
+    /* ── CHARACTER-BY-CHARACTER TYPING EFFECT ────────────────── */
+    function typeText(el, text, onDone) {
+      let i = 0;
+      /* Adaptive speed: faster for long answers, slower for short ones */
+      const ms = Math.max(8, Math.min(22, 1400 / text.length));
+      function tick() {
+        if (i < text.length) {
+          el.textContent += text[i++];
+          el.closest('.msg').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          setTimeout(tick, ms);
+        } else {
+          onDone?.();
+        }
+      }
+      tick();
+    }
+
+    /* ── CLEAR CHAT ──────────────────────────────────────────── */
+    function clearChat() {
+      thread.innerHTML = '';
+      /* Restore empty state */
+      const es = document.createElement('div');
+      es.className = 'empty-state'; es.id = 'emptyState';
+      es.textContent = '↑ CLICK A PROMPT ABOVE OR TYPE BELOW TO BEGIN';
+      thread.appendChild(es);
+    }
+
+    /* ── SEND MESSAGE ────────────────────────────────────────── */
+    async function sendMessage() {
+      const q = inputEl.value.trim();
+      if (!q) return;
+
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      sendBtn.disabled = true;
+
+      appendMsg('user', q);
+      showTyping();
+
+      try {
+        const res  = await fetch(`${API}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data   = await res.json();
+        const answer = data.answer ?? data.reply ?? data.response ?? JSON.stringify(data);
+
+        hideTyping();
+        const bodyEl = appendMsg('ai', '');
+        typeText(bodyEl, answer, () => {
+          sendBtn.disabled = false;
+          inputEl.focus();
+        });
+      } catch (err) {
+        hideTyping();
+        appendMsg('error',
+          'Could not reach the AI backend.\n' +
+          'Make sure the server is running: python serve.py');
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    /* ── CHIP HANDLERS ───────────────────────────────────────── */
+    function chipSend(text) {
+      inputEl.value = text;
+      sendMessage();
+    }
+
+    function chipJD() {
+      const template = 'Here is the job description:\n\n[Paste the job description here]\n\nIs this candidate a match? Please provide a detailed analysis covering strengths, gaps, and overall fit score.';
+      inputEl.value = template;
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+      inputEl.focus();
+      /* Select the placeholder text so the user can paste directly */
+      const start = template.indexOf('[Paste');
+      const end   = template.indexOf(']', start) + 1;
+      inputEl.setSelectionRange(start, end);
+    }
+  </script>
+</body>
+</html>
